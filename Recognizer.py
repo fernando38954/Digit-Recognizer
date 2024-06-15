@@ -11,72 +11,61 @@ def initialise(a, b):
 	c = c * (2 * epsilon) - epsilon # Os valores do c são agora entre [-epsilon, epsilon)
 	return c 
 
-def predict(Theta1, Theta2, Theta3, X): 
-	m = X.shape[0] 
-	one_matrix = np.ones((m, 1)) 
-	X = np.append(one_matrix, X, axis=1) # Adding bias unit to first layer 
-	z2 = np.dot(X, Theta1.transpose()) 
-	a2 = 1 / (1 + np.exp(-z2)) # Activation for second layer 
-	one_matrix = np.ones((m, 1)) 
-	a2 = np.append(one_matrix, a2, axis=1) # Adding bias unit to hidden layer 
-	z3 = np.dot(a2, Theta2.transpose()) 
-	a3 = 1 / (1 + np.exp(-z3)) # Activation for third layer 
-	one_matrix = np.ones((m, 1)) 
-	a3 = np.append(one_matrix, a3, axis=1) # Adding bias unit to hidden layer 
-	z4 = np.dot(a3, Theta3.transpose()) 
-	a4 = 1 / (1 + np.exp(-z4)) # Activation for third layer 
-	p = (np.argmax(a4, axis=1)) # Predicting the class on the basis of max value of hypothesis 
+def predict(W, data): 
+	#	Preve o número a partir do Weight inserido
+	m = data.shape[0] 
+	ones = np.ones((m, 1))
+	
+	for i in range(W.shape[0]):
+		data = np.append(ones, data, axis=1)
+		value = np.dot(data, W[i].transpose())
+		data = 1 / (1 + np.exp(-value))
+		 
+	p = (np.argmax(data, axis=1))
 	return p 
 
 # ============================ Modelo ==================================
 
-def neural_network(params, input_size, hidden_size, output_size, data, answer): 
-	# Weights are split back to Theta1, Theta2 
-	Weight1 = np.reshape(params[:hidden_size * (input_size + 1)], (hidden_size, input_size + 1)) # shape = (38, 785) 
-	Weight2 = np.reshape(params[hidden_size * (input_size + 1):hidden_size * (input_size + 1) + hidden_size * (hidden_size + 1)], (hidden_size, hidden_size + 1)) # shape = (38, 39) 
-	Weight3 = np.reshape(params[hidden_size * (input_size + 1) + hidden_size * (hidden_size + 1):], (output_size, hidden_size + 1)) # shape = (10, 39) 
+def neural_network(params, input_size, hidden_size, output_size, data, answer):
+	# inicializar
+	layer = 3
+	W = np.empty(layer, dtype=object) 
+	W[0] = np.reshape(params[:hidden_size * (input_size + 1)], (hidden_size, input_size + 1)) # shape = (38, 785) 
+	W[1] = np.reshape(params[hidden_size * (input_size + 1):hidden_size * (input_size + 1) + hidden_size * (hidden_size + 1)], (hidden_size, hidden_size + 1)) # shape = (38, 39) 
+	W[2] = np.reshape(params[hidden_size * (input_size + 1) + hidden_size * (hidden_size + 1):], (output_size, hidden_size + 1)) # shape = (10, 39)
+	
+	# Forward propagation
+	x = np.empty(layer+1, dtype=object)
+	s = np.empty(layer+1, dtype=object)
+	
+	m = data.shape[0]
+	bias = np.ones((m, 1))
+	
+	x[0] = data
+	for i in range(layer):
+		x[i] = np.append(bias, x[i], axis=1)
+		s[i+1] = np.dot(x[i], W[i].T)
+		x[i+1] = 1 / (1 + np.exp(-s[i+1]))
 
-	# Forward propagation 
-	m = data.shape[0] 
-	one_matrix = np.ones((m, 1)) 
-	data = np.append(one_matrix, data, axis=1) # Adding bias unit to first layer 
-	a1 = data
-	z2 = np.dot(data, Weight1.transpose()) 
-	a2 = 1 / (1 + np.exp(-z2)) # Activation for second layer 
-	one_matrix = np.ones((m, 1)) 
-	a2 = np.append(one_matrix, a2, axis=1) # Adding bias unit to hidden layer 
-	z3 = np.dot(a2, Weight2.transpose()) 
-	a3 = 1 / (1 + np.exp(-z3)) # Activation for third layer 
-	one_matrix = np.ones((m, 1)) 
-	a3 = np.append(one_matrix, a3, axis=1) # Adding bias unit to hidden layer 
-	z4 = np.dot(a3, Weight3.transpose()) 
-	a4 = 1 / (1 + np.exp(-z4)) # Activation for third layer 
-
-	# Changing the y labels into vectors of boolean values. 
-	# For each label between 0 and 9, there will be a vector of length 10 
-	# where the ith element will be 1 if the label equals i 
+	# Calcular o custo
 	ans_vect = np.zeros((m, 10)) 
 	for i in range(m): 
 		ans_vect[i, int(answer[i])] = 1
+	J = (1 / m) * (1 / 2) * (np.sum(np.sum((x[layer] - ans_vect) * (x[layer] - ans_vect))))
 
-	# Calculating cost function 
-	J = (1 / m) * (1 / 2) * (np.sum(np.sum((a4 - ans_vect) * (a4 - ans_vect))))
+	# Backpropagation
+	delta = np.empty(layer+1, dtype=object) 
+	delta[layer] = x[layer] - ans_vect
+	for i in range(layer-1, 0, -1):
+		delta[i] = np.dot(delta[i+1], W[i]) * x[i] * (1 - x[i])
+		delta[i] = delta[i][:, 1:]
 
-	# backprop 
-	Delta4 = a4 - ans_vect 
-	Delta3 = np.dot(Delta4, Weight3) * a3 * (1 - a3) 
-	Delta3 = Delta3[:, 1:] 
-	Delta2 = np.dot(Delta3, Weight2) * a2 * (1 - a2) 
-	Delta2 = Delta2[:, 1:] 
-
-	# gradient 
-	Weight1[:, 0] = 0
-	Weight1_grad = (1 / m) * np.dot(Delta2.transpose(), a1)
-	Weight2[:, 0] = 0
-	Weight2_grad = (1 / m) * np.dot(Delta3.transpose(), a2)
-	Weight3[:, 0] = 0
-	Weight3_grad = (1 / m) * np.dot(Delta4.transpose(), a3)
-	grad = np.concatenate((Weight1_grad.flatten(), Weight2_grad.flatten(), Weight3_grad.flatten())) 
+	# Gradient
+	W_grad = np.empty(layer, dtype=object) 
+	for i in range(layer):
+		W[i][:, 0] = 0
+		W_grad[i] = (1 / m) * np.dot(delta[i+1].T, x[i])
+	grad = np.concatenate((W_grad[0].flatten(),W_grad[1].flatten(),W_grad[2].flatten())) 
 
 	return J, grad 
 
@@ -93,32 +82,32 @@ mnist_label_train = mnist_label[:60000]
 mnist_label_test = mnist_label[60000:]
 
 input_size = 784 # Imagem de 28x28 tem 784 pixels
-hidden_size = 38
+hidden_size = 38 # Tamanho das duas camadas ocultas
 output_size = 10 # Números de 0 a 9
 
-# Inicializar os pesos iniciais aleatoriamente
+# Inicializar os weights iniciais aleatoriamente
 Weight1 = initialise(hidden_size, input_size)
 Weight2 = initialise(hidden_size, hidden_size) 
-Weight3 = initialise(output_size, hidden_size) 
+Weight3 = initialise(output_size, hidden_size)
 
-# Unrolling parameters into a single column vector 
-initial_params = np.concatenate((Weight1.flatten(), Weight2.flatten(), Weight3.flatten())) 
+# Coloca os paramentos em uma só
+params = np.concatenate((Weight1.flatten(), Weight2.flatten(), Weight3.flatten()))
 myargs = (input_size, hidden_size, output_size, mnist_data_train, mnist_label_train) 
 
-# Calling minimize function to minimize cost function and to train weights 
-results = minimize(neural_network, x0=initial_params, args=myargs, options={'maxiter': 100}, method="L-BFGS-B", jac=True) 
+# Minimizar o erro da função "neural_network"
+results = minimize(neural_network, x0=params, args=myargs, options={'maxiter': 100}, method="L-BFGS-B", jac=True) 
+solution = results["x"]
 
-solution = results["x"] # Trained Theta is extracted 
-
-# Weights are split back to Theta1, Theta2 
-Weight1 = np.reshape(solution[:hidden_size * (input_size + 1)], (hidden_size, input_size + 1)) # shape = (38, 785) 
-Weight2 = np.reshape(solution[hidden_size * (input_size + 1):hidden_size * (input_size + 1) + hidden_size * (hidden_size + 1)], (hidden_size, hidden_size + 1)) # shape = (38, 39) 
-Weight3 = np.reshape(solution[hidden_size * (input_size + 1) + hidden_size * (hidden_size + 1):], (output_size, hidden_size + 1)) # shape = (10, 39) 
+# Extrair a resposta
+W = np.empty(3, dtype=object)
+W[0] = np.reshape(solution[:hidden_size * (input_size + 1)], (hidden_size, input_size + 1)) # shape = (38, 785) 
+W[1] = np.reshape(solution[hidden_size * (input_size + 1):hidden_size * (input_size + 1) + hidden_size * (hidden_size + 1)], (hidden_size, hidden_size + 1)) # shape = (38, 39) 
+W[2] = np.reshape(solution[hidden_size * (input_size + 1) + hidden_size * (hidden_size + 1):], (output_size, hidden_size + 1)) # shape = (10, 39) 
 
 # Checking test set accuracy of our model 
-pred = predict(Weight1, Weight2, Weight3, mnist_data_test) 
+pred = predict(W, mnist_data_test) 
 print('Test Set Accuracy: {:f}'.format((np.mean(pred == mnist_label_test) * 100))) 
 
 # Checking train set accuracy of our model 
-pred = predict(Weight1, Weight2, Weight3, mnist_data_train) 
+pred = predict(W, mnist_data_train) 
 print('Training Set Accuracy: {:f}'.format((np.mean(pred == mnist_label_train) * 100)))
