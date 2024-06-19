@@ -4,13 +4,6 @@ import numpy as np
 from scipy.optimize import minimize 
 
 # ============================= Funções ===============================
-
-def initialise(a, b): 
-	epsilon = 0.15
-	c = np.random.rand(a, b+1) # Inicializa o c como um matrix de tamanho axb+1 de números [0,1)
-	c = c * (2 * epsilon) - epsilon # Os valores do c são agora entre [-epsilon, epsilon)
-	return c 
-
 def predict(W, data): 
 	#	Preve o número a partir do Weight inserido
 	m = data.shape[0] 
@@ -85,10 +78,11 @@ input_size = 784 # Imagem de 28x28 tem 784 pixels
 hidden_size = 38 # Tamanho das duas camadas ocultas
 output_size = 10 # Números de 0 a 9
 
-# Inicializar os weights iniciais aleatoriamente
-Weight1 = initialise(hidden_size, input_size)
-Weight2 = initialise(hidden_size, hidden_size) 
-Weight3 = initialise(output_size, hidden_size)
+# Inicializar os weights iniciais aleatoriamente entre [-epsilon, epsilon)
+epsilon = 0.15
+Weight1 = np.random.rand(hidden_size, input_size+1) * (2 * epsilon) - epsilon
+Weight2 = np.random.rand(hidden_size, hidden_size+1) * (2 * epsilon) - epsilon
+Weight3 = np.random.rand(output_size, hidden_size+1) * (2 * epsilon) - epsilon
 
 # Coloca os paramentos em uma só
 params = np.concatenate((Weight1.flatten(), Weight2.flatten(), Weight3.flatten()))
